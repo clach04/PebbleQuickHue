@@ -61,8 +61,12 @@ static void init(void) {
 
     // Open AppMessage
     // TODO: Once AppMessage code is finish determine maximum size required
+#ifdef MAX_MESSAGE_SIZES
+    app_message_open(MAX_MESSAGE_SIZE_IN, MAX_MESSAGE_SIZE_OUT);
+#else /* MAX_MESSAGE_INBOX_SIZE */
     app_message_open(app_message_inbox_size_maximum(),
                      app_message_outbox_size_maximum());
+#endif /* MAX_MESSAGE_INBOX_SIZE */
 
     // Window
     window = window_create();
