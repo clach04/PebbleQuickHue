@@ -27,7 +27,7 @@ Pebble.addEventListener("ready", function(e) {
 * PebbleKit App Configuration functions
 *******************************************************************************/
 Pebble.addEventListener("showConfiguration", function(e) {
-    Pebble.openURL("http://carlosperate.github.io/PebbleQuickHue/config/" +
+    Pebble.openURL("http://clach04.github.io/pebble/quickhue/" +
                    "index.html?" + encodeURIComponent(JSON.stringify(OPTIONS)));
 });
 
@@ -36,6 +36,11 @@ Pebble.addEventListener("webviewclosed", function(e) {
     var setHueUser = null;
     var setHueLightId = null;
     var bridgeConfig = JSON.parse(decodeURIComponent(e.response));
+
+    console.log('e.response: ' + e.response);
+    console.log('e.response.length: ' + e.response.length);
+    console.log('dictionary to validate ' + JSON.stringify(bridgeConfig));
+
     for (var i=0; i < bridgeConfig.length; i++) {
         if (bridgeConfig[i].name === "HUE_BRIDGE_IP") {
             setHueIp = bridgeConfig[i].value;
@@ -59,7 +64,7 @@ Pebble.addEventListener("webviewclosed", function(e) {
 *******************************************************************************/
 /** Listener for AppMessage received. */
 Pebble.addEventListener("appmessage", function(e) {
-    //console.log("AppMessage received! " + JSON.stringify(e.payload));
+    console.log("AppMessage received! " + JSON.stringify(e.payload));
     for (var key in e.payload){
         if (key == "KEY_LIGHT_STATE") {
             toggleLightState();
@@ -90,6 +95,7 @@ function messageSendLightState(on_state) {
 
     // Assemble dictionary
     var dictionary = { "KEY_LIGHT_STATE": state };
+    console.log('dictionary to send to Pebble ' + JSON.stringify(dictionary));
     // Send the message, if an error occurs try again up to 3 times
     Pebble.sendAppMessage(dictionary,
             function(e) { sendStateAttemps = 0; },
@@ -123,10 +129,15 @@ function messageSetBridgeData(ip, user, lightId) {
     if (user    !== null) dictionary["KEY_BRIDGE_USER"] = user;
     if (lightId !== null) dictionary["KEY_LIGHT_ID"] = lightId;
 
+    console.log('dictionary to send to Pebble ' + JSON.stringify(dictionary));
     // Send the message, if an error occurs try again up to 3 times
     Pebble.sendAppMessage(dictionary,
-            function(e) { setBridgeDataAttemps = 0; },
             function(e) {
+                console.log("Configuration sent to Pebble successfully!");
+                setBridgeDataAttemps = 0;
+            },
+            function(e) {
+                console.log("Error sending configuration info to Pebble!");
                 reAttemp(e, setBridgeDataAttemps, messageSetBridgeData);
             });
 }
