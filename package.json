@@ -9,14 +9,14 @@
         ],
         "displayName": "QuickHue",
         "enableMultiJS": true,
-        "messageKeys": {
-            "KEY_BRIDGE_IP": 2,
-            "KEY_BRIDGE_USER": 3,
-            "KEY_BRIGHTNESS": 1,
-            "KEY_LIGHT_ID": 4,
-            "KEY_LIGHT_STATE": 0,
-            "KEY_SETT_REQUEST": 5
-        },
+        "messageKeys": [
+            "LIGHT_STATE",
+            "BRIGHTNESS",
+            "BRIDGE_IP",
+            "BRIDGE_USER",
+            "LIGHT_ID",
+            "SETT_REQUEST"
+        ],
         "projectType": "native",
         "resources": {
             "media": [
@@ -45,9 +45,7 @@
         },
         "sdkVersion": "3",
         "targetPlatforms": [
-            "aplite",
-            "basalt",
-            "chalk"
+            "aplite"
         ],
         "uuid": "6f267899-b108-4380-97aa-66baf4a345a1",
         "watchapp": {

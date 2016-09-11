@@ -22,19 +22,6 @@
 
 
 /*******************************************************************************
-* AppMessage Keys
-*******************************************************************************/
-enum {
-    KEY_LIGHT_STATE = 0,
-    KEY_BRIGHTNESS = 1,
-    KEY_BRIDGE_IP = 2,
-    KEY_BRIDGE_USER = 3,
-    KEY_LIGHT_ID = 4,
-    KEY_SETT_REQUEST = 5
-};
-
-
-/*******************************************************************************
 * Private function definitions
 *******************************************************************************/
 static char * translate_error(AppMessageResult result);
@@ -51,97 +38,82 @@ static int8_t get_stored_light_id();
 *******************************************************************************/
 void inbox_received_callback(DictionaryIterator *iterator, void *context) {
     int8_t level = 0;
+    Tuple *t=NULL;
 
-    // 1st we are going to check for the presence of KEY_SETT_REQUEST. This is
-    // a special case, this key can be sent with an operation retry request
-    // (only two options designed), and the program response is different:
-    Tuple *t = dict_read_first(iterator);
-    while (t != NULL) {
-        switch (t->key) {
-            case KEY_SETT_REQUEST:
-                // Retrieve bridge data from storage and send it back
-                send_bridge_settings();
-                //APP_LOG(APP_LOG_LEVEL_INFO, "Settings requested.");
 
-                // Start from the begging to look for the other key
-                t = dict_read_first(iterator);
-                while (t != NULL) {
-                    switch (t->key) {
-                        case KEY_LIGHT_STATE:
+    t = dict_find(iterator, MESSAGE_KEY_LIGHT_STATE);
+    if (t)
+    {
                             // Try to toggle once again
                             toggle_light_state();
                             //APP_LOG(APP_LOG_LEVEL_INFO,
                             //       "Toggle light with settings request.");
-                        break;
-                        case KEY_BRIGHTNESS:
+    }
+
+    t = dict_find(iterator, MESSAGE_KEY_BRIGHTNESS);
+    if (t)
+    {
                             // Try to set brightness again with sent back data
                             level =  (int8_t)(t->value->int16 / 2.56 );
                             set_brightness(level);
                             //APP_LOG(APP_LOG_LEVEL_INFO,
                             //        "Set brightness with settings request: %d",
                             //        t->value->int16);
-                        break;
-                        case KEY_SETT_REQUEST:  // Expected, already dealt with
-                            break;
-                        default:
-                            APP_LOG(APP_LOG_LEVEL_ERROR,
-                                    "Key %d supplied with KEY_SETT_REQUEST error!",
-                                    (int)t->key);
-                        break;
-                    }
-                    t = dict_read_next(iterator);
-                }
-                // Found and processed the KEY_SETT_REQUEST, can exit function
-                return;
-            default:  // If KEY_SETT_REQUEST not found, then just continue.
-                break;
-        }
-        if (t != NULL ) {
-            t = dict_read_next(iterator);
-        }
     }
 
-    // Back to the first item and go through the keys as normal
-    t = dict_read_first(iterator);
-    while (t != NULL) {
-        switch (t->key) {
-            case KEY_LIGHT_STATE:
+    t = dict_find(iterator, MESSAGE_KEY_LIGHT_STATE);
+    if (t)
+    {
                 // Indicate to the GUI that the light is ON/OFF
                 gui_light_state((light_t)t->value->int8);
                 //APP_LOG(APP_LOG_LEVEL_INFO, "Light on is %d", t->value->int8);
-                break;
-            case KEY_BRIGHTNESS:
+    }
+
+    t = dict_find(iterator, MESSAGE_KEY_BRIGHTNESS);
+    if (t)
+    {
                 // Indicate to the GUI the new light brightness value
                 level =  (int8_t)(t->value->int16 / 2.56 );
                 gui_brightness_level(level);
                 //APP_LOG(APP_LOG_LEVEL_INFO, "Brightness is %d", level);
-                break;
-            case KEY_BRIDGE_IP:
+    }
+
+    t = dict_find(iterator, MESSAGE_KEY_BRIDGE_IP);
+    if (t)
+    {
                 // Set the new IP address into storage
                 store_bridge_ip(t->value->cstring);
                 //APP_LOG(APP_LOG_LEVEL_INFO, "Ip set to %s", t->value->cstring);
-                break;
-            case KEY_BRIDGE_USER:
+    }
+
+    t = dict_find(iterator, MESSAGE_KEY_BRIDGE_USER);
+    if (t)
+    {
                 // Set the new bridge username into storage
                 store_bridge_username(t->value->cstring);
                 //APP_LOG(APP_LOG_LEVEL_INFO, "User set to %s",
                 //        t->value->cstring);
-                break;
-            case KEY_LIGHT_ID:
-                // Set the new bridge username into storage
+    }
+
+    t = dict_find(iterator, MESSAGE_KEY_LIGHT_ID);
+    if (t)
+    {
                 store_light_id(t->value->int8);
                 //APP_LOG(APP_LOG_LEVEL_INFO, "Light ID set to %d",
                 //        t->value->int8);
-                break;
-            case KEY_SETT_REQUEST:
-                // Already check for this key, so this should no happen
-            default:
-                APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!",
-                        (int)t->key);
-            break;
-        }
-        t = dict_read_next(iterator);
     }
+
+    // 1st we are going to check for the presence of MESSAGE_KEY_SETT_REQUEST. This is
+    // a special case, this key can be sent with an operation retry request
+    // (only two options designed), and the program response is different:
+    t = dict_find(iterator, MESSAGE_KEY_SETT_REQUEST);
+    if (t)
+    {
+                // Retrieve bridge data from storage and send it back
+                send_bridge_settings();
+                //APP_LOG(APP_LOG_LEVEL_INFO, "Settings requested.");
+    }
+
 }
 
 
@@ -213,48 +185,137 @@ static char * translate_error(AppMessageResult result) {
 * Data storage for Hue Bridge settings
 *******************************************************************************/
 static void store_bridge_ip(const char *cstring) {
-    status_t status;
+    int status;  // int persist_write_string(const uint32_t key, const char * cstring)
 
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "cstring >%s<", cstring);
     // Any string > STORAGE_IP_LENGTH (including terminator) will be truncated
     if (strlen(cstring) > (STORAGE_IP_LENGTH - 1)) {
         char bridge_ip[STORAGE_IP_LENGTH];
         strncpy(bridge_ip, cstring, (STORAGE_IP_LENGTH - 1));
         bridge_ip[STORAGE_IP_LENGTH - 1] = '\0';
-        status = persist_write_string(KEY_BRIDGE_IP, bridge_ip);
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "pre bridge_ip write >%s<", bridge_ip);
+        status = persist_write_string(MESSAGE_KEY_BRIDGE_IP, bridge_ip);
     } else {
-        status = persist_write_string(KEY_BRIDGE_IP, cstring);
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "pre write cstring >%s<", cstring);
+        status = persist_write_string(MESSAGE_KEY_BRIDGE_IP, cstring);
     }
 
-    if (status != S_SUCCESS) {
-        APP_LOG(APP_LOG_LEVEL_INFO, "Error trying to store the Bridge IP!");
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "status persist_write_string %d", status);
+    if (status <= 0) {
+        APP_LOG(APP_LOG_LEVEL_ERROR, "Error trying to store the Bridge IP!");
     }
 }
 
 
 static void store_bridge_username(const char *cstring) {
-    status_t status;
+    int status;  // int persist_write_string(const uint32_t key, const char * cstring)
 
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "store_bridge_username >%s<", cstring);
     // Any string > STORAGE_USER_LENGTH (including terminator) will be truncated
     if (strlen(cstring) > (STORAGE_USER_LENGTH - 1)) {
         char bridge_user[STORAGE_USER_LENGTH];
         strncpy(bridge_user, cstring, (STORAGE_USER_LENGTH - 1));
         bridge_user[STORAGE_USER_LENGTH - 1] = '\0';
-        status = persist_write_string(KEY_BRIDGE_IP, bridge_user);
+        status = persist_write_string(MESSAGE_KEY_BRIDGE_IP, bridge_user);
     } else {
-        status = persist_write_string(KEY_BRIDGE_USER, cstring);
+        status = persist_write_string(MESSAGE_KEY_BRIDGE_USER, cstring);
     }
 
-    if (status != S_SUCCESS) {
-        APP_LOG(APP_LOG_LEVEL_INFO, "Error trying to store Bridge username!");
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "status persist_write_string %d", status);
+    if (status <= 0) {
+        APP_LOG(APP_LOG_LEVEL_ERROR, "Error trying to store Bridge username!");
     }
 }
 
+/** 
+ * Translates a error enum into a string that can easily be identified during
+ * debugging sessions.
+ * @return A string with the error title.
+ */
+static char * translate_status(status_t status) {
+    switch (status) {
+
+        case S_SUCCESS:
+            return "S_SUCCESS";
+
+        case E_ERROR:
+            return "E_ERROR";
+
+        case E_UNKNOWN:
+            return "E_UNKNOWN";
+
+        case E_INTERNAL:
+            return "E_INTERNAL";
+
+        case E_INVALID_ARGUMENT:
+            return "E_INVALID_ARGUMENT";
+
+        case E_OUT_OF_MEMORY:
+            return "E_OUT_OF_MEMORY";
+
+        case E_OUT_OF_STORAGE:
+            return "E_OUT_OF_STORAGE";
+
+        case E_OUT_OF_RESOURCES:
+            return "E_OUT_OF_RESOURCES";
+
+        case E_RANGE:
+            return "E_RANGE";
+
+        case E_DOES_NOT_EXIST:
+            return "E_DOES_NOT_EXIST";
+
+        case E_INVALID_OPERATION:
+            return "E_INVALID_OPERATION";
+
+        case E_BUSY:
+            return "E_BUSY";
+
+        case E_AGAIN:
+            return "E_AGAIN";
+
+        case S_TRUE:
+            return "S_TRUE";
+
+        /*
+        ** this is the same as S_SUCCESS
+        case S_FALSE:
+            return "S_FALSE";
+        */
+
+        case S_NO_MORE_ITEMS:
+            return "S_NO_MORE_ITEMS";
+
+        case S_NO_ACTION_REQUIRED:
+            return "S_NO_ACTION_REQUIRED";
+
+
+        default:
+            return "UNKNOWN STATUS";
+    }
+}
 
 static void store_light_id(const int8_t light_id) {
-    status_t status = persist_write_int(KEY_LIGHT_ID, (const int32_t)light_id);
+    status_t status = persist_write_int(MESSAGE_KEY_LIGHT_ID, (const int32_t)light_id);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "status store_light_id() %d %s", (int) status, translate_status(status));
+    /*
+    ** Consistently get: 4 UNKNOWN STATUS
+    ** and yet persist_exists(MESSAGE_KEY_LIGHT_ID)
+    ** returns True. Checking status is is not a good idea IMHO
+    */
+    /*
     if (status != S_SUCCESS) {
-        APP_LOG(APP_LOG_LEVEL_INFO, "Error trying to store the Light ID!");
+        APP_LOG(APP_LOG_LEVEL_ERROR, "Error trying to store the Light ID!");
     }
+    if (persist_exists(MESSAGE_KEY_LIGHT_ID))
+    {
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "persist true");
+    }
+    else
+    {
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "persist false");
+    }
+    */
 }
 
 
@@ -270,7 +331,7 @@ static char * get_stored_bridge_ip() {
         // We'll deal with a null pointer in the calling function
         APP_LOG(APP_LOG_LEVEL_ERROR, "Mem alloc failure for bridge IP!");
     } else {
-        int8_t buffer_len = persist_read_string(KEY_BRIDGE_IP, bridge_ip,
+        int8_t buffer_len = persist_read_string(MESSAGE_KEY_BRIDGE_IP, bridge_ip,
                                                 (sizeof(char) * 16));
         if (buffer_len == E_DOES_NOT_EXIST) {
             free(bridge_ip);
@@ -304,7 +365,7 @@ static char * get_stored_bridge_username() {
         }
     }
 
-    int16_t buffer_len = persist_read_string(KEY_BRIDGE_USER, bridge_username,
+    int16_t buffer_len = persist_read_string(MESSAGE_KEY_BRIDGE_USER, bridge_username,
                                              (sizeof(char) * username_len));
     if (buffer_len == E_DOES_NOT_EXIST) {
         free(bridge_username);
@@ -335,7 +396,7 @@ static char * get_stored_bridge_username() {
  * @return The hue light bulb ID stored. 
  */
 static int8_t get_stored_light_id() {
-    int8_t light_id = (int8_t)persist_read_int(KEY_LIGHT_ID);
+    int8_t light_id = (int8_t)persist_read_int(MESSAGE_KEY_LIGHT_ID);
     if (0 == light_id) {
         APP_LOG(APP_LOG_LEVEL_INFO, "Light ID not found in Pebble");
         light_id = LIGHT_ID_ERROR;
@@ -360,14 +421,14 @@ void toggle_light_state() {
     DictionaryIterator *iterator;
     app_message_outbox_begin(&iterator);
     // Value ignored, will always toggle
-    dict_write_int8(iterator, KEY_LIGHT_STATE, 0);
+    dict_write_int8(iterator, MESSAGE_KEY_LIGHT_STATE, 0);
     AppMessageResult result = app_message_outbox_send();
     if (result != APP_MSG_OK) {
         uint8_t counter = 0;
         while ((counter < 5) && (result == APP_MSG_BUSY)) {
             psleep(75);
             app_message_outbox_begin(&iterator);
-            dict_write_int8(iterator, KEY_LIGHT_STATE, 0);
+            dict_write_int8(iterator, MESSAGE_KEY_LIGHT_STATE, 0);
             result = app_message_outbox_send();
             counter++;
         }
@@ -391,14 +452,14 @@ void set_brightness(int8_t level) {
     // Prepare dictionary, add key-value pair and send it
     DictionaryIterator *iterator;
     app_message_outbox_begin(&iterator);
-    dict_write_int16(iterator, KEY_BRIGHTNESS, (int16_t)(level * 2.56));
+    dict_write_int16(iterator, MESSAGE_KEY_BRIGHTNESS, (int16_t)(level * 2.56));
     AppMessageResult result = app_message_outbox_send();
     if (result != APP_MSG_OK) {
         uint8_t counter = 0;
         while ((counter < 3) && (result == APP_MSG_BUSY)) {
             psleep(50);
             app_message_outbox_begin(&iterator);
-            dict_write_int16(iterator, KEY_BRIGHTNESS, (int16_t)(level * 2.56));
+            dict_write_int16(iterator, MESSAGE_KEY_BRIGHTNESS, (int16_t)(level * 2.56));
             result = app_message_outbox_send();
             counter++;
         }
@@ -428,9 +489,9 @@ void send_bridge_settings() {
         // Prepare dictionary, Add key-value pairs and send it
         DictionaryIterator *iterator;
         app_message_outbox_begin(&iterator);
-        dict_write_cstring(iterator, KEY_BRIDGE_IP, ip);
-        dict_write_cstring(iterator, KEY_BRIDGE_USER, username);
-        dict_write_int8(iterator, KEY_LIGHT_ID, light_id);
+        dict_write_cstring(iterator, MESSAGE_KEY_BRIDGE_IP, ip);
+        dict_write_cstring(iterator, MESSAGE_KEY_BRIDGE_USER, username);
+        dict_write_int8(iterator, MESSAGE_KEY_LIGHT_ID, light_id);
         AppMessageResult result = app_message_outbox_send();
         if (result != APP_MSG_OK) {
             APP_LOG(APP_LOG_LEVEL_ERROR, "Bridge settings message error! %s",

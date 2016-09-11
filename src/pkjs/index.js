@@ -66,16 +66,16 @@ Pebble.addEventListener("webviewclosed", function(e) {
 Pebble.addEventListener("appmessage", function(e) {
     console.log("AppMessage received! " + JSON.stringify(e.payload));
     for (var key in e.payload){
-        if (key == "KEY_LIGHT_STATE") {
+        if (key == "LIGHT_STATE") {
             toggleLightState();
-        } else if (key == "KEY_BRIGHTNESS") {
-            setLightBrightness(e.payload.KEY_BRIGHTNESS);
-        } else if (key == "KEY_BRIDGE_IP") {
-            OPTIONS.HUE_BRIDGE_IP = e.payload.KEY_BRIDGE_IP;
-        } else if (key == "KEY_BRIDGE_USER") {
-            OPTIONS.HUE_BRIDGE_USER = e.payload.KEY_BRIDGE_USER;
-        } else if (key == "KEY_LIGHT_ID") {
-            OPTIONS.HUE_LIGHT_ID = e.payload.KEY_LIGHT_ID;
+        } else if (key == "BRIGHTNESS") {
+            setLightBrightness(e.payload.BRIGHTNESS);
+        } else if (key == "BRIDGE_IP") {
+            OPTIONS.HUE_BRIDGE_IP = e.payload.BRIDGE_IP;
+        } else if (key == "BRIDGE_USER") {
+            OPTIONS.HUE_BRIDGE_USER = e.payload.BRIDGE_USER;
+        } else if (key == "LIGHT_ID") {
+            OPTIONS.HUE_LIGHT_ID = e.payload.LIGHT_ID;
         } else {
             console.log("Unrecognised AppMessage key received in JS: " + key);
         }
@@ -94,7 +94,7 @@ function messageSendLightState(on_state) {
     }
 
     // Assemble dictionary
-    var dictionary = { "KEY_LIGHT_STATE": state };
+    var dictionary = { "LIGHT_STATE": state };
     console.log('dictionary to send to Pebble ' + JSON.stringify(dictionary));
     // Send the message, if an error occurs try again up to 3 times
     Pebble.sendAppMessage(dictionary,
@@ -111,7 +111,7 @@ function messageSendLightState(on_state) {
 /** Sends and AppMessage with the ON/OFF state of the light. */
 var sendBrightnessAttemps = 0;
 function messageSendLightBrightness(level) {
-    var dictionary = { "KEY_BRIGHTNESS": level };
+    var dictionary = { "BRIGHTNESS": level };
     // Send the message, if an error occurs try again up to 3 times
     Pebble.sendAppMessage(dictionary,
             function(e) { sendBrightnessAttemps = 0; },
@@ -125,9 +125,9 @@ var setBridgeDataAttemps = 0;
 function messageSetBridgeData(ip, user, lightId) {
     // Values will be ignored
     var dictionary = {};
-    if (ip      !== null) dictionary["KEY_BRIDGE_IP"] = ip;
-    if (user    !== null) dictionary["KEY_BRIDGE_USER"] = user;
-    if (lightId !== null) dictionary["KEY_LIGHT_ID"] = lightId;
+    if (ip      !== null) dictionary["BRIDGE_IP"] = ip;
+    if (user    !== null) dictionary["BRIDGE_USER"] = user;
+    if (lightId !== null) dictionary["LIGHT_ID"] = lightId;
 
     console.log('dictionary to send to Pebble ' + JSON.stringify(dictionary));
     // Send the message, if an error occurs try again up to 3 times
@@ -151,7 +151,7 @@ var requestBridgeAttemps = 0;
 function messageRequestBridgeData(additionaRequest, additionalValue) {
     // We only do 3 attemps triggered by function calls rather than nacks
     if (requestBridgeAttemps < 3) {
-        var dictionary = { "KEY_SETT_REQUEST": 0 };  
+        var dictionary = { "SETT_REQUEST": 0 };  
         if (additionaRequest !== null) {
             dictionary[additionaRequest] = additionalValue;
         }
@@ -173,7 +173,7 @@ function reAttemp(e, tracker, callback) {
 *******************************************************************************/
 function toggleLightState() {
     if (!areSettingSet()) {
-        messageRequestBridgeData("KEY_LIGHT_STATE", 0);
+        messageRequestBridgeData("LIGHT_STATE", 0);
         return;
     }
     var toggleCallback = function(jsdonStrDataBack) {
@@ -229,7 +229,7 @@ function turnLightCallback(jsdonStrDataBack) {
 
 function setLightBrightness(level) {
     if (!areSettingSet()) {
-        messageRequestBridgeData("KEY_BRIGHTNESS", level);
+        messageRequestBridgeData("BRIGHTNESS", level);
         return;
     }
     var setLightBrightnessCallback = function (jsdonStrDataBack) {
